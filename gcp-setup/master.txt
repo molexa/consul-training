@@ -1,0 +1,49 @@
+SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINtdcUGbrpzcvZVYtyiGea/6TcAEtVBy25eir+XmW+aA martin@olexa.dev"
+PROJECT=$(gcloud config get project)
+gcloud config set compute/zone europe-north1-a
+
+
+#Gateway jumphost
+gcloud compute instances create gateway \
+    --machine-type=e2-small \
+    --network-interface=network-tier=PREMIUM,private-network-ip=10.166.0.10,stack-type=IPV4_ONLY,subnet=default \
+    --metadata=ssh-keys=ubuntu:"$SSH_KEY" \
+    --create-disk=auto-delete=yes,boot=yes,device-name=instance-1,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231101,mode=rw,size=10
+
+#Server master
+gcloud compute instances create server \
+    --machine-type=e2-small \
+    --network-interface=network-tier=PREMIUM,private-network-ip=10.166.0.20,stack-type=IPV4_ONLY,subnet=default,no-address \
+    --metadata=ssh-keys=ubuntu:"$SSH_KEY" \
+    --create-disk=auto-delete=yes,boot=yes,device-name=instance-1,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231101,mode=rw,size=10
+
+###########
+
+GATEWAY_EXT=
+GATEWAY_IP=10.166.0.10
+SERVER_IP=10.166.0.20
+
+#systemctl stop ufw
+#systemctl disable ufw
+
+apt install net-tools
+
+wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+sudo apt update && sudo apt install consul
+
+
+cat << EOF > /etc/consul.d/consul.hcl
+data_dir = "/opt/consul"
+bootstrap_expect=1
+ui_config{
+  enabled = true
+}
+server = true
+client_addr = 0.0.0.0
+EOF
+
+
+systemctl start consul
+systemctl enable consul
