@@ -1,0 +1,95 @@
+SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINtdcUGbrpzcvZVYtyiGea/6TcAEtVBy25eir+XmW+aA martin@olexa.dev"
+PROJECT=$(gcloud config get project)
+gcloud config set compute/zone europe-north1-a
+
+#Frontend
+gcloud compute instances create frontend01 \
+    --machine-type=e2-small \
+    --network-interface=network-tier=PREMIUM,private-network-ip=10.166.0.30,stack-type=IPV4_ONLY,subnet=default \
+    --metadata=ssh-keys=ubuntu:"$SSH_KEY" \
+    --create-disk=auto-delete=yes,boot=yes,device-name=instance-1,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231101,mode=rw,size=10
+
+#Frontend
+gcloud compute instances create frontend02 \
+    --machine-type=e2-small \
+    --network-interface=network-tier=PREMIUM,private-network-ip=10.166.0.31,stack-type=IPV4_ONLY,subnet=default \
+    --metadata=ssh-keys=ubuntu:"$SSH_KEY" \
+    --create-disk=auto-delete=yes,boot=yes,device-name=instance-1,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231101,mode=rw,size=10
+
+###########
+
+FRONTEND01_IP=10.166.0.30
+FRONTEND02_IP=10.166.0.31
+SERVER_IP=10.166.0.20
+
+wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+apt update && sudo apt -y install consul net-tools
+
+cat << EOF > /etc/consul.d/consul.hcl
+data_dir = "/opt/consul"
+retry_join = ["$SERVER_IP"]
+client_addr = "0.0.0.0"
+EOF
+
+systemctl start consul
+systemctl enable consul
+
+
+apt -y install nginx php-fpm
+rm -f /etc/nginx/sites-enabled/default
+rm -f /etc/nginx/sites-available/default
+
+cat <<EOF > /etc/nginx/sites-enabled/test
+server {
+        listen 80 default_server;
+        server_name _;
+        root /var/www/html;
+        index index.php index.html;
+
+        location ~ \.php$ {
+                include snippets/fastcgi-php.conf;
+                fastcgi_pass unix:/var/run/php/php7.4-fpm.sock;
+        }
+}
+EOF
+
+cat <<EOF > /var/www/html/index.php
+<?php
+echo gethostname();
+?>
+EOF
+
+systemctl restart nginx php7.4-fpm
+systemctl enable nginx php7.4-fpm
+
+curl localhost
+
+cat <<EOF > /etc/consul.d/frontend.json
+{
+"service": {
+        "name": "frontend",
+        "port": 80,
+        "tags": ["http","prometheus","fe_team"]
+}
+}
+EOF
+
+nc -l -p 2000 &
+
+cat <<EOF > /etc/consul.d/nc.json
+{
+"service": {
+        "name": "nc",
+        "port": 2000,
+        "tags": ["tcp","fe_team"]
+}
+}
+EOF
+
+service consul restart
+systemctl enable consul
+
+
+###########
