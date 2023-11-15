@@ -25,7 +25,7 @@ SERVER_IP=10.166.0.20
 wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
 
-apt update && sudo apt -y install consul net-tools
+apt update && apt -y install consul net-tools
 
 cat << EOF > /etc/consul.d/consul.hcl
 data_dir = "/opt/consul"
@@ -38,6 +38,7 @@ systemctl enable consul
 
 
 apt -y install nginx php-fpm
+
 rm -f /etc/nginx/sites-enabled/default
 rm -f /etc/nginx/sites-available/default
 
@@ -76,7 +77,7 @@ cat <<EOF > /etc/consul.d/frontend.json
 }
 EOF
 
-nc -l -p 2000 &
+
 
 cat <<EOF > /etc/consul.d/nc.json
 {
@@ -88,8 +89,42 @@ cat <<EOF > /etc/consul.d/nc.json
 }
 EOF
 
-service consul restart
+systemctl restart consul
 systemctl enable consul
 
 
 ###########
+
+cat <<EOF > /etc/consul.d/frontend.json
+{
+"service": {
+        "name": "frontend",
+        "port": 80,
+        "tags": ["http","prometheus","fe_team"],
+        "checks": [{"http": "http://localhost:80", "interval": "3s"}]
+}
+}
+EOF
+
+cat <<EOF > /etc/consul.d/nc.json
+{
+"service": {
+        "name": "nc",
+        "port": 2000,
+        "tags": ["tcp","fe_team"],
+        "checks": [
+              {"name": "tcp", "tcp": "localhost:2000", "interval": "3s"},
+              {"name": "tmp_exists", "args": ["/bin/ls", "/tmp/enable"], "interval": "3s"}
+        ]
+}
+}
+EOF
+
+while true; do nc -l -p 2000; done &
+
+echo "enable_local_script_checks = true" >> /etc/consul.d/consul.hcl
+
+systemctl restart consul
+
+touch /tmp/enable
+
