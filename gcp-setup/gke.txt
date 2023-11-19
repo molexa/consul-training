@@ -1,0 +1,5 @@
+PROJECT=$(gcloud config get project)
+
+gcloud container --project "$PROJECT" clusters create-auto "test-cluster" --region "europe-north1" --release-channel "regular" --network "projects/$PROJECT/global/networks/default" --subnetwork "projects/$PROJECT/regions/europe-north1/subnetworks/default" --cluster-ipv4-cidr "/22"
+
+ gcloud container clusters get-credentials my-consul-cluster --zone us-west1-b --project my-project

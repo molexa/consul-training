@@ -10,22 +10,12 @@ gcloud compute instances create gateway \
     --metadata=ssh-keys=ubuntu:"$SSH_KEY" \
     --create-disk=auto-delete=yes,boot=yes,device-name=instance-1,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231101,mode=rw,size=10
 
-#Server master
-gcloud compute instances create server \
-    --machine-type=e2-small \
-    --network-interface=network-tier=PREMIUM,private-network-ip=10.166.0.20,stack-type=IPV4_ONLY,subnet=default \
-    --metadata=ssh-keys=ubuntu:"$SSH_KEY" \
-    --create-disk=auto-delete=yes,boot=yes,device-name=instance-1,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231101,mode=rw,size=10
-
 ###########
 
-GATEWAY_EXT=35.228.57.209
-SERVER_EXT=34.88.30.148
+GATEWAY_EXT=
+SERVER_EXT=
 GATEWAY_IP=10.166.0.10
 SERVER_IP=10.166.0.20
-
-#systemctl stop ufw
-#systemctl disable ufw
 
 wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
@@ -35,11 +25,7 @@ apt -y install net-tools jq
 
 cat << EOF > /etc/consul.d/consul.hcl
 data_dir = "/opt/consul"
-bootstrap_expect=1
-ui_config{
-  enabled = true
-}
-server = true
+retry_join = ["$SERVER_IP"]
 client_addr = "0.0.0.0"
 EOF
 
@@ -48,26 +34,7 @@ systemctl enable consul
 
 ###########
 
-ssh -L 8500:127.0.0.1:8500 ubuntu@$SERVER_EXT
-
-###########Gateway:
-
 dig nc.service.consul @10.166.0.20 -p 8600
-
-wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-
-apt update && sudo apt -y install consul net-tools
-
-cat << EOF > /etc/consul.d/consul.hcl
-data_dir = "/opt/consul"
-retry_join = ["10.166.0.20"]
-client_addr = "0.0.0.0"
-EOF
-
-systemctl start consul
-systemctl enable consul
-
 dig nc.service.consul @localhost -p 8600
 
 ###########
@@ -86,8 +53,6 @@ rm /etc/resolv.conf
 service dnsmasq restart
 systemctl enable dnsmasq
 
-######Server
+######
 
-echo 'alt_domain = "firma.cz"' >> /etc/consul.d/consul.hcl
-service consul reload
-dig nc.service.firma.cz @127.0.0.1 -p 8600
+run security.txt

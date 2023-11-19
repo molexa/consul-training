@@ -1,0 +1,78 @@
+consul keygen
+head -c 32 /dev/urandom | base64
+sT8+VS42pwKhwgHt8AUig4lRZ2uKfaiDAIkMRgHZNjM=
+
+echo 'encrypt = "sT8+VS42pwKhwgHt8AUig4lRZ2uKfaiDAIkMRgHZNjM="' >> /etc/consul.d/consul.hcl
+
+systemctl restart consul
+
+########### TLS - minimal
+
+#consul tls ca create
+#consul tls cert create -server -dc dc1 -additional-dnsname="*.dc2.consul"
+
+########### Server
+
+##Copy consul-agent-ca.pem dc1-server-consul-0-key.pem dc1-server-consul-0.pem to /etc/consul.d/
+
+cat <<EOF >> /etc/consul.d/consul.hcl
+
+verify_incoming = true
+verify_outgoing = true
+verify_server_hostname = true
+ca_file = "/etc/consul.d/consul-agent-ca.pem"
+cert_file = "/etc/consul.d/dc1-server-consul-0.pem"
+key_file = "/etc/consul.d/dc1-server-consul-0-key.pem"
+auto_encrypt {
+  allow_tls = true
+}
+EOF
+
+chown -R consul:consul /etc/consul.d/*
+
+systemctl restart consul
+
+############ Agent
+
+cat <<EOF > /etc/consul.d/consul-agent-ca.pem
+-----BEGIN CERTIFICATE-----
+MIIC7jCCApOgAwIBAgIQTpMms10ssUFr9316LLnKCzAKBggqhkjOPQQDAjCBuTEL
+MAkGA1UEBhMCVVMxCzAJBgNVBAgTAkNBMRYwFAYDVQQHEw1TYW4gRnJhbmNpc2Nv
+MRowGAYDVQQJExExMDEgU2Vjb25kIFN0cmVldDEOMAwGA1UEERMFOTQxMDUxFzAV
+BgNVBAoTDkhhc2hpQ29ycCBJbmMuMUAwPgYDVQQDEzdDb25zdWwgQWdlbnQgQ0Eg
+MTA0NDQzODM2MjUxNjcwMjIyMjc5ODE3MjY1NTQwNTg5Mjc1NjU5MB4XDTIzMTEx
+OTE3MzgxMFoXDTI4MTExNzE3MzgxMFowgbkxCzAJBgNVBAYTAlVTMQswCQYDVQQI
+EwJDQTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzEaMBgGA1UECRMRMTAxIFNlY29u
+ZCBTdHJlZXQxDjAMBgNVBBETBTk0MTA1MRcwFQYDVQQKEw5IYXNoaUNvcnAgSW5j
+LjFAMD4GA1UEAxM3Q29uc3VsIEFnZW50IENBIDEwNDQ0MzgzNjI1MTY3MDIyMjI3
+OTgxNzI2NTU0MDU4OTI3NTY1OTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABDAP
+sib/ySicHN8VubHG0rsOjGIetLMieW5E7cN+WzavXzexkHoh6mGHYkOJ6CmXLQOB
+hShQLNp5fVONXUXpHwCjezB5MA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTAD
+AQH/MCkGA1UdDgQiBCCsqKiKImCv3eBMOGk6LwhblwQuOPK8avV7tLkIehiR4zAr
+BgNVHSMEJDAigCCsqKiKImCv3eBMOGk6LwhblwQuOPK8avV7tLkIehiR4zAKBggq
+hkjOPQQDAgNJADBGAiEAq+SoNKIg/OF5hkbEaRTX0SxNN3dRPVCp6XLtOujEZGcC
+IQCbQw5muGXi1zD0IgUNnsZRw6Ln8YQn5nuWjxEUakR3VA==
+-----END CERTIFICATE-----
+EOF
+
+chown -R consul:consul /etc/consul.d/consul-agent-ca.pem
+
+cat <<EOF >> /etc/consul.d/consul.hcl
+
+verify_incoming = false
+verify_outgoing = true
+verify_server_hostname = true
+ca_file = "/etc/consul.d/consul-agent-ca.pem"
+auto_encrypt = {
+  tls = true
+}
+EOF
+
+
+
+systemctl restart consul
+
+
+
+
+

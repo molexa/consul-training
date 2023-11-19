@@ -128,3 +128,7 @@ systemctl restart consul
 
 touch /tmp/enable
 
+#######
+
+run security.txt
+

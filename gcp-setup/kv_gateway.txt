@@ -1,0 +1,76 @@
+apt -y install haproxy
+apt -y install consul-template
+mkdir /etc/consul-template.d/
+
+cat <<EOF > /etc/systemd/system/consul-template.service
+[Unit]
+Description=consul-template
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+User=root
+Group=root
+ExecStart=/usr/bin/consul-template -config=/etc/consul-template.d/
+Restart=on-failure
+
+KillSignal=SIGINT
+ExecReload=/bin/kill -HUP $MAINPID
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+
+cat <<EOF > /etc/consul-template.d/haproxy
+template {
+  source = "/etc/haproxy/haproxy.cfg.template"
+  destination = "/etc/haproxy/haproxy.cfg"
+  command = "service haproxy reload"
+  wait = "5s:10s"
+}
+EOF
+
+cat << 'EOF' > /etc/haproxy/haproxy.cfg.template
+{{$groupedServices := services | byTag}}
+{{$pub := $groupedServices.http}}
+global
+
+  user    root
+  group   root
+  daemon
+
+defaults
+  mode    http
+
+frontend internal_services
+  bind *:80
+  http-request add-header X-Forwarded-Proto http
+
+  # Define hosts
+  {{range $pub}}acl service_{{.Name}} hdr_dom(host) -i {{.Name}}.consul-proxy.firma.cz{{end}}
+  {{range $pub}}use_backend {{.Name}}_cluster if service_{{.Name}}{{end}}
+
+#Backends
+{{- range $pub}}
+backend {{.Name}}_cluster
+  balance {{if .Tags|contains "balance_static_rr" }}static-rr{{else}}leastconn{{end}}
+  option httpclose
+  option forwardfor
+  {{range service .Name}}server {{.Node}}-{{.Address}} {{.Address}}:{{.Port}}{{end}}
+{{- end}}
+
+EOF
+
+
+systemctl restart consul-template
+systemctl enable  consul-template 
+
+systemctl restart haproxy
+systemctl enable  haproxy
+
+curl -H "Host: frontend.consul-proxy.firma.cz" localhost

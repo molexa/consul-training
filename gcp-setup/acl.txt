@@ -1,0 +1,67 @@
+########### ACL - server noda
+
+cat << EOF >> /etc/consul.d/consul.hcl
+acl{
+  enabled = true
+  default_policy = "allow"
+  enable_token_persistence = true
+}
+EOF
+
+consul acl bootstrap
+
+CONSUL_HTTP_TOKEN=718a41e5-6c71-85a3-b637-fe8c2635b41d
+export CONSUL_HTTP_TOKEN
+
+/etc/consul.d/consul.hcl:
+acl{
+  enabled = true
+  default_policy = "deny"
+  enable_token_persistence = true
+  tokens {
+    agent  = "$CONSUL_HTTP_TOKEN"
+  }
+}
+EOF
+
+systemctl restart consul
+
+########## ACL - agenti
+
+GUI:
+node_prefix "" {
+  policy = "write"
+}
+
+CONSUL_HTTP_TOKEN=cb84f686-b5bd-4e7b-684d-e250e3b4b333
+export CONSUL_HTTP_TOKEN
+
+cat << EOF >> /etc/consul.d/consul.hcl
+acl{
+  enabled = true
+  default_policy = "deny"
+  enable_token_persistence = true
+  tokens {
+    agent  = "$CONSUL_HTTP_TOKEN"
+  }
+}
+EOF
+
+systemctl restart consul
+consul catalog nodes
+consul catalog services
+
+########## DNS policy - server
+
+cat << EOF > /root/dns-policy.hcl
+node_prefix "" {
+  policy = "read"
+}
+service_prefix "" {
+  policy = "read"
+}
+EOF
+
+consul acl policy create -name dns-read -rules @/root/dns-policy.hcl
+consul acl token update -id anonymous -policy-name=dns-read
+
