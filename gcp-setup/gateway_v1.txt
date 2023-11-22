@@ -14,8 +14,6 @@ gcloud compute instances create gateway \
 
 GATEWAY_EXT=
 SERVER_EXT=
-GATEWAY_IP=10.166.0.10
-SERVER_IP=10.166.0.20
 
 wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
@@ -25,7 +23,7 @@ apt -y install net-tools jq
 
 cat << EOF > /etc/consul.d/consul.hcl
 data_dir = "/opt/consul"
-retry_join = ["$SERVER_IP"]
+retry_join = ["10.166.0.20"]
 client_addr = "0.0.0.0"
 EOF
 

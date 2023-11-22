@@ -41,7 +41,3 @@ ssh -L 8500:127.0.0.1:8500 ubuntu@$SERVER_EXT
 echo 'alt_domain = "firma.cz"' >> /etc/consul.d/consul.hcl
 service consul reload
 dig nc.service.firma.cz @127.0.0.1 -p 8600
-
-#########
-
-run security.txt

@@ -1,0 +1,138 @@
+PROJECT=$(gcloud config get project)
+
+gcloud beta container --project "$PROJECT" clusters create "test-cluster" --zone "europe-north1-a" --no-enable-basic-auth --machine-type "e2-medium" --image-type "COS_CONTAINERD" --disk-type "pd-balanced" --disk-size "100" --metadata disable-legacy-endpoints=true --scopes "https://www.googleapis.com/auth/cloud-platform" --num-nodes "3" --logging=SYSTEM,WORKLOAD --monitoring=SYSTEM --enable-ip-alias --network "projects/$PROJECT/global/networks/default" --subnetwork "projects/$PROJECT/regions/europe-north1/subnetworks/default" --no-enable-intra-node-visibility --default-max-pods-per-node "110" --security-posture=standard --workload-vulnerability-scanning=disabled --no-enable-master-authorized-networks --addons HorizontalPodAutoscaling,HttpLoadBalancing,GcePersistentDiskCsiDriver --enable-autoupgrade --enable-autorepair --max-surge-upgrade 1 --max-unavailable-upgrade 0 --binauthz-evaluation-mode=DISABLED --enable-managed-prometheus --node-locations "europe-north1-a"
+IP_RANGE=$(gcloud container clusters describe test-cluster --format=get"(clusterIpv4Cidr)" --zone "europe-north1-a"  --project=$PROJECT)
+gcloud compute firewall-rules create "test-cluster-to-all-vms-on-network" --network=default --source-ranges=$IP_RANGE --allow=tcp,udp,icmp --project=$PROJECT
+gcloud container clusters get-credentials test-cluster --location europe-north1-a
+
+##########Consul server
+
+cat << EOF > /etc/consul/consul.hcl
+ports {
+   grpc_tls = 8502
+   https = 8501
+}
+EOF
+
+systemctl restart consul
+
+###########gcloud
+
+consul-agent-ca.pem:
+
+-----BEGIN CERTIFICATE-----
+MIIC7jCCApOgAwIBAgIQTpMms10ssUFr9316LLnKCzAKBggqhkjOPQQDAjCBuTEL
+MAkGA1UEBhMCVVMxCzAJBgNVBAgTAkNBMRYwFAYDVQQHEw1TYW4gRnJhbmNpc2Nv
+MRowGAYDVQQJExExMDEgU2Vjb25kIFN0cmVldDEOMAwGA1UEERMFOTQxMDUxFzAV
+BgNVBAoTDkhhc2hpQ29ycCBJbmMuMUAwPgYDVQQDEzdDb25zdWwgQWdlbnQgQ0Eg
+MTA0NDQzODM2MjUxNjcwMjIyMjc5ODE3MjY1NTQwNTg5Mjc1NjU5MB4XDTIzMTEx
+OTE3MzgxMFoXDTI4MTExNzE3MzgxMFowgbkxCzAJBgNVBAYTAlVTMQswCQYDVQQI
+EwJDQTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzEaMBgGA1UECRMRMTAxIFNlY29u
+ZCBTdHJlZXQxDjAMBgNVBBETBTk0MTA1MRcwFQYDVQQKEw5IYXNoaUNvcnAgSW5j
+LjFAMD4GA1UEAxM3Q29uc3VsIEFnZW50IENBIDEwNDQ0MzgzNjI1MTY3MDIyMjI3
+OTgxNzI2NTU0MDU4OTI3NTY1OTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABDAP
+sib/ySicHN8VubHG0rsOjGIetLMieW5E7cN+WzavXzexkHoh6mGHYkOJ6CmXLQOB
+hShQLNp5fVONXUXpHwCjezB5MA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTAD
+AQH/MCkGA1UdDgQiBCCsqKiKImCv3eBMOGk6LwhblwQuOPK8avV7tLkIehiR4zAr
+BgNVHSMEJDAigCCsqKiKImCv3eBMOGk6LwhblwQuOPK8avV7tLkIehiR4zAKBggq
+hkjOPQQDAgNJADBGAiEAq+SoNKIg/OF5hkbEaRTX0SxNN3dRPVCp6XLtOujEZGcC
+IQCbQw5muGXi1zD0IgUNnsZRw6Ln8YQn5nuWjxEUakR3VA==
+-----END CERTIFICATE-----
+
+helm repo add hashicorp https://helm.releases.hashicorp.com
+
+kubectl create namespace consul
+kubectl create secret generic consul-gossip-encryption-key --from-literal=key="sT8+VS42pwKhwgHt8AUig4lRZ2uKfaiDAIkMRgHZNjM=" --namespace consul
+kubectl create secret generic consul-ca-cert --from-file='tls.crt=./consul-agent-ca.pem' --namespace consul
+kubectl create secret generic consul-bootstrap-acl-token --from-literal=token="138ad8d7-25b9-d7ff-5017-82d88606313d" --namespace consul
+
+##################
+
+values.yaml:
+
+global:
+ enabled: true
+ name: consul
+ datacenter: dc1
+ gossipEncryption:
+  secretName: consul-gossip-encryption-key
+  secretKey: key
+ tls:
+   enabled: true
+   enableAutoEncrypt: true
+   httpsOnly: false
+   caCert:
+    secretName: consul-ca-cert
+    secretKey: tls.crt
+ acls:
+   manageSystemACLs: false
+server:
+ enabled: false
+externalServers:
+ enabled: true
+ hosts: ["10.166.0.20"]
+client:
+ enabled: true
+ join: ["10.166.0.20"]
+ extraConfig: |
+  {
+  "acl" : {
+   "enabled": true,
+   "default_policy": "deny",
+   "enable_token_persistence": true,
+   "tokens" : {
+    "agent" : "138ad8d7-25b9-d7ff-5017-82d88606313d"
+    }
+   }
+  }
+dns:
+ enabled: true
+ui:
+ enabled: false
+connectInject:
+ enabled: false
+syncCatalog:
+ enabled: true
+ default: true
+ k8sAllowNamespaces: ['*']
+ k8sDenyNamespaces: ['kube-system', 'gmp-system']
+ toK8S: false
+ aclSyncToken:
+  secretName: consul-bootstrap-acl-token
+  secretKey: token
+
+
+################
+
+helm install --values values.yaml consul hashicorp/consul --namespace consul
+kubectl get pods --namespace consul
+
+################Auth method
+#kubectl get endpoints | grep kubernetes
+#kubectl get secret consul-auth-method -o yaml --namespace consul | grep token: | awk '{ print$2 }' | base64 -d
+#kubectl get secret consul-auth-method -o yaml --namespace consul | grep ca.crt | awk '{ print$2 }' | base64 -d
+
+################
+
+kubectl create namespace fe-team
+kubectl --namespace fe-team create deployment hello-server --image=us-docker.pkg.dev/google-samples/containers/gke/hello-app:1.0
+
+hello_service.yaml:
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-service
+  annotations:
+    "consul.hashicorp.com/service-tags": "http"
+spec:
+  selector:
+    app: hello-server
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+
+kubectl --namespace fe-team apply -f hello_service.yaml
+
+################

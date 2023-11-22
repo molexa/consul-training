@@ -8,9 +8,9 @@ acl{
 }
 EOF
 
-consul acl bootstrap
+consul acl bootstrap -token=138ad8d7-25b9-d7ff-5017-82d88606313d
 
-CONSUL_HTTP_TOKEN=718a41e5-6c71-85a3-b637-fe8c2635b41d
+CONSUL_HTTP_TOKEN=138ad8d7-25b9-d7ff-5017-82d88606313d
 export CONSUL_HTTP_TOKEN
 
 /etc/consul.d/consul.hcl:
