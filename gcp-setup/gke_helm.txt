@@ -107,10 +107,22 @@ syncCatalog:
 helm install --values values.yaml consul hashicorp/consul --namespace consul
 kubectl get pods --namespace consul
 
-################Auth method
-#kubectl get endpoints | grep kubernetes
-#kubectl get secret consul-auth-method -o yaml --namespace consul | grep token: | awk '{ print$2 }' | base64 -d
-#kubectl get secret consul-auth-method -o yaml --namespace consul | grep ca.crt | awk '{ print$2 }' | base64 -d
+################DNS
+
+CONSUL_DNS_IP=`kubectl get svc consul-dns --output jsonpath='{.spec.clusterIP}' -n consul`
+
+cat <<EOF | kubectl apply --filename -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    addonmanager.kubernetes.io/mode: EnsureExists
+  name: kube-dns
+  namespace: kube-system
+data:
+  stubDomains: |
+    {"consul": ["$CONSUL_DNS_IP"]}
+EOF
 
 ################
 
@@ -136,3 +148,8 @@ spec:
 kubectl --namespace fe-team apply -f hello_service.yaml
 
 ################
+
+curl hello-service-fe-team.service.consul
+kubectl scale --replicas=3 deployment hello-server --namespace fe-team
+curl hello-service-fe-team.service.consul:8080
+

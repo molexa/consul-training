@@ -3,7 +3,7 @@ PROJECT=$(gcloud config get project)
 gcloud config set compute/zone europe-north1-a
 
 gcloud compute instances create server \
-    --machine-type=e2-small \
+    --machine-type=e2-medium \
     --network-interface=network-tier=PREMIUM,private-network-ip=10.166.0.20,stack-type=IPV4_ONLY,subnet=default \
     --metadata=ssh-keys=ubuntu:"$SSH_KEY" \
     --create-disk=auto-delete=yes,boot=yes,device-name=instance-1,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231101,mode=rw,size=10

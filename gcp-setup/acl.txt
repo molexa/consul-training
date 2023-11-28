@@ -65,3 +65,13 @@ EOF
 consul acl policy create -name dns-read -rules @/root/dns-policy.hcl
 consul acl token update -id anonymous -policy-name=dns-read
 
+########### ACL - servicy
+consul acl token create -description "Token for hello-service-fe-team" -service-identity "hello-service-fe-team"
+
+hello.json:
+service {
+...
+"token": "0a7afab7-fb9d-9035-7143-de1de68dc6ea"
+}
+
+systemctl restart consul

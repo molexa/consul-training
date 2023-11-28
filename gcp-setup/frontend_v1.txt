@@ -5,7 +5,7 @@ gcloud config set compute/zone europe-north1-a
 #Frontend
 gcloud compute instances create frontend01 \
     --machine-type=e2-small \
-    --network-interface=network-tier=PREMIUM,private-network-ip=10.166.0.30,stack-type=IPV4_ONLY,subnet=default \
+    --network-interface=network-tier=PREMIUM,private-network-ip=10.166.0.30,stack-type=IPV4_ONLY,subnet=default,no-address \
     --metadata=ssh-keys=ubuntu:"$SSH_KEY" \
     --create-disk=auto-delete=yes,boot=yes,device-name=instance-1,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231101,mode=rw,size=10
 
@@ -36,6 +36,9 @@ EOF
 systemctl start consul
 systemctl enable consul
 
+apt -y install docker.io
+ip link delete docker0
+docker run -d --network host us-docker.pkg.dev/google-samples/containers/gke/hello-app:1.0
 
 apt -y install nginx php-fpm
 
@@ -67,6 +70,16 @@ systemctl enable nginx php7.4-fpm
 
 curl localhost
 
+cat <<EOF > /etc/consul.d/hello.json
+{
+"service": {
+        "name": "hello-service-fe-team",
+        "port": 8080,
+        "tags": ["http","fe_team"]
+}
+}
+EOF
+
 cat <<EOF > /etc/consul.d/frontend.json
 {
 "service": {
@@ -93,7 +106,7 @@ systemctl restart consul
 systemctl enable consul
 
 
-###########
+###########Healthchecks
 
 cat <<EOF > /etc/consul.d/frontend.json
 {
@@ -127,8 +140,4 @@ echo "enable_local_script_checks = true" >> /etc/consul.d/consul.hcl
 systemctl restart consul
 
 touch /tmp/enable
-
-#######
-
-run security.txt
 
