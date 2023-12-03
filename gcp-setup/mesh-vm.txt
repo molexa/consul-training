@@ -1,0 +1,170 @@
+###########Server
+cat << EOF >> /etc/consul.d/consul.hcl
+connect {
+  enabled = true
+}
+EOF
+
+cat << EOF > /etc/consul.d/proxy_defaults.txt
+Kind      = "proxy-defaults"
+Name      = "global"
+Config {
+  protocol = "http"
+}
+EOF
+
+consul config write /etc/consul.d/proxy_defaults.txt
+
+###########Gateway
+curl hello-service-fe-team.service.consul:8080
+host hello-service-fe-team.service.consul
+
+###########Frontend
+reboot
+
+cat << EOF >> /etc/consul.d/consul.hcl
+bind_addr = "{{ GetPrivateInterfaces | include \"network\" \"10.0.0.0/8\" | attr \"address\" }}"
+ports {
+  grpc = 8502
+}
+EOF
+
+docker run -d -p 127.0.0.1:8080:8080 us-docker.pkg.dev/google-samples/containers/gke/hello-app:1.0
+
+netstat
+
+export ENVOY_VERSION_STRING=1.27.2
+curl -L https://func-e.io/install.sh | bash -s -- -b /usr/local/bin
+func-e use $ENVOY_VERSION_STRING
+cp ~/.func-e/versions/$ENVOY_VERSION_STRING/bin/envoy /usr/local/bin/
+envoy --version
+
+hello.json:
+"connect": {
+  "sidecar_service": {}
+}
+
+Add tag "v2" on frontend2 and "v1" on frontend1
+
+systemctl restart consul
+
+consul connect envoy -sidecar-for hello-service-fe-team -token=0a7afab7-fb9d-9035-7143-de1de68dc6ea -admin-bind localhost:19001 > hello-proxy.log &
+
+netstat -tnlp
+
+###########Gateway
+
+curl hello-service-fe-team.service.consul:8080
+curl hello-service-fe-team.service.consul:21000
+
+#Generate ACL token for gwproxy on server
+consul acl token create -description "Token for gwproxy" -service-identity "gwproxy"
+
+cat << EOF > /etc/consul.d/gwproxy.hcl
+service {
+  name = "gwproxy"
+  token = "fb93da2b-79ab-0be1-3503-d6565a9f9941"
+  connect {
+    sidecar_service {
+      proxy {
+        upstreams = [
+          {
+            destination_name = "hello-service-fe-team"
+            local_bind_port  = 8080
+          }
+        ]
+      }
+    }
+  }
+}
+EOF
+
+systemctl restart consul
+
+#Install envoy
+#Enable grpc port
+consul connect envoy -sidecar-for gwproxy -token=fb93da2b-79ab-0be1-3503-d6565a9f9941 &
+
+netstat -tnlp
+curl localhost:8080
+
+#Create intention in GUI
+curl localhost:8080
+
+##############Server
+
+cat << EOF > /etc/consul.d/failover.txt
+Kind           = "service-resolver"
+Name           = "hello-service-fe-team"
+ConnectTimeout = "0s"
+Failover = {
+  "*" = {
+    Datacenters = ["dc1","dc2"]
+  }
+}
+EOF
+
+#export token
+consul config write /etc/consul.d/failover.txt
+
+###########Gateway
+curl localhost:8080
+
+###########Gateway
+curl localhost:8000/v1/a
+curl localhost:8000/v2/a
+
+###########Server
+
+cat << EOF > /etc/consul.d/failover.txt
+Kind           = "service-resolver"
+Name           = "hello-service-fe-team"
+ConnectTimeout = "0s"
+Failover = {
+  "*" = {
+    Datacenters = ["dc1","dc2"]
+  }
+}
+DefaultSubset = "v1"
+Subsets = {
+  "v1" = {
+    filter = "\"v1\" in Service.Tags"
+  }
+  "v2" = {
+    filter = "\"v2\" in Service.Tags"
+  }
+}
+EOF
+
+consul config write failover.txt
+
+cat << EOF > /etc/consul.d/router.txt
+Kind = "service-router"
+Name = "hello-service-fe-team"
+Routes = [
+ {
+  Match {
+    HTTP {
+      PathPrefix = "/v1"
+    }
+  }
+  Destination {
+   Service = "hello-service-fe-team"
+   ServiceSubset = "v1"
+  }
+ },
+ {
+  Match {
+    HTTP {
+      PathPrefix = "/v2"
+    }
+  }
+  Destination {
+   Service = "hello-service-fe-team"
+   ServiceSubset = "v2"
+  }
+ }
+]
+EOF
+
+consul config write /etc/consul.d/router.txt

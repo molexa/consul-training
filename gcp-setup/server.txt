@@ -31,8 +31,8 @@ server = true
 client_addr = "0.0.0.0"
 EOF
 
-systemctl start consul
-systemctl enable consul
+#Some problem with service on Ubuntu for server deployment
+consul agent --config-dir=/etc/consul.d/ &
 
 ssh -L 8500:127.0.0.1:8500 ubuntu@$SERVER_EXT
 

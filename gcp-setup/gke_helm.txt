@@ -14,7 +14,8 @@ ports {
 }
 EOF
 
-systemctl restart consul
+killall consul
+consul agent --config-dir=/etc/consul.d/ &
 
 ###########gcloud
 
@@ -44,7 +45,7 @@ helm repo add hashicorp https://helm.releases.hashicorp.com
 kubectl create namespace consul
 kubectl create secret generic consul-gossip-encryption-key --from-literal=key="sT8+VS42pwKhwgHt8AUig4lRZ2uKfaiDAIkMRgHZNjM=" --namespace consul
 kubectl create secret generic consul-ca-cert --from-file='tls.crt=./consul-agent-ca.pem' --namespace consul
-kubectl create secret generic consul-bootstrap-acl-token --from-literal=token="138ad8d7-25b9-d7ff-5017-82d88606313d" --namespace consul
+kubectl create secret generic consul-bootstrap-acl-token --from-literal=token="edaf8179-dd1e-8011-df84-b0f717785b9b" --namespace consul
 
 ##################
 

@@ -8,9 +8,9 @@ acl{
 }
 EOF
 
-consul acl bootstrap -token=138ad8d7-25b9-d7ff-5017-82d88606313d
+consul acl bootstrap
 
-CONSUL_HTTP_TOKEN=138ad8d7-25b9-d7ff-5017-82d88606313d
+CONSUL_HTTP_TOKEN=edaf8179-dd1e-8011-df84-b0f717785b9b
 export CONSUL_HTTP_TOKEN
 
 /etc/consul.d/consul.hcl:
@@ -24,7 +24,7 @@ acl{
 }
 EOF
 
-systemctl restart consul
+consul reload
 
 ########## ACL - agenti
 
