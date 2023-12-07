@@ -8,9 +8,12 @@ acl{
 }
 EOF
 
+killall consul
+consul agent --config-dir=/etc/consul.d/ &
+
 consul acl bootstrap
 
-CONSUL_HTTP_TOKEN=edaf8179-dd1e-8011-df84-b0f717785b9b
+CONSUL_HTTP_TOKEN=e3ecf5bb-8572-5088-2afe-a4c92649da34
 export CONSUL_HTTP_TOKEN
 
 /etc/consul.d/consul.hcl:
@@ -24,7 +27,8 @@ acl{
 }
 EOF
 
-consul reload
+killall consul
+consul agent --config-dir=/etc/consul.d/ &
 
 ########## ACL - agenti
 
@@ -33,7 +37,7 @@ node_prefix "" {
   policy = "write"
 }
 
-CONSUL_HTTP_TOKEN=cb84f686-b5bd-4e7b-684d-e250e3b4b333
+CONSUL_HTTP_TOKEN=7c18243a-aac7-fe7f-d17d-b196d6782b78
 export CONSUL_HTTP_TOKEN
 
 cat << EOF >> /etc/consul.d/consul.hcl

@@ -4,6 +4,11 @@ sT8+VS42pwKhwgHt8AUig4lRZ2uKfaiDAIkMRgHZNjM=
 
 echo 'encrypt = "sT8+VS42pwKhwgHt8AUig4lRZ2uKfaiDAIkMRgHZNjM="' >> /etc/consul.d/consul.hcl
 
+#Server
+killall consul
+consul agent --config-dir=/etc/consul.d/ &
+
+#Klienti
 systemctl restart consul
 
 ########### TLS - minimal
@@ -30,7 +35,8 @@ EOF
 
 chown -R consul:consul /etc/consul.d/*
 
-systemctl restart consul
+killall consul
+consul agent --config-dir=/etc/consul.d/ &
 
 ############ Agent
 

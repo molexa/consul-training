@@ -5,9 +5,10 @@ IP_RANGE=$(gcloud container clusters describe test-cluster --format=get"(cluster
 gcloud compute firewall-rules create "test-cluster-to-all-vms-on-network" --network=default --source-ranges=$IP_RANGE --allow=tcp,udp,icmp --project=$PROJECT
 gcloud container clusters get-credentials test-cluster --location europe-north1-a
 
+kubectl get pods
 ##########Consul server
 
-cat << EOF > /etc/consul/consul.hcl
+cat << EOF >> /etc/consul.d/consul.hcl
 ports {
    grpc_tls = 8502
    https = 8501
