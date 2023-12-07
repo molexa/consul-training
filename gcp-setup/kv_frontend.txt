@@ -31,6 +31,13 @@ EOF
 
 systemctl daemon-reload
 
+cat <<EOF > /var/www/index.php.template
+<?php
+echo gethostname();
+echo ', toggle: {{ key "/web/feature_toggle" }} ';
+?>
+EOF
+
 cat <<EOF > /etc/consul-template.d/frontend
 template {
   source = "/var/www/index.php.template"
@@ -38,12 +45,7 @@ template {
 }
 EOF
 
-cat <<EOF > /var/www/index.php.template
-<?php
-echo gethostname();
-echo ', toggle: {{ key "/web/feature_toggle" }} ';
-?>
-EOF
+
 
 systemctl restart consul-template
 systemctl enable  consul-template 

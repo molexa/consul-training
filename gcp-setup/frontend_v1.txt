@@ -79,7 +79,7 @@ cat <<EOF > /etc/consul.d/hello.json
 "service": {
         "name": "hello-service-fe-team",
         "port": 8080,
-        "tags": ["http","prometheus","fe_team"]
+        "tags": [prometheus","fe_team"]
 }
 }
 EOF

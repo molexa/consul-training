@@ -61,8 +61,9 @@ backend {{.Name}}_cluster
   balance {{if .Tags|contains "balance_static_rr" }}static-rr{{else}}leastconn{{end}}
   option httpclose
   option forwardfor
-  {{range service .Name}}server {{.Node}}-{{.Address}} {{.Address}}:{{.Port}}{{end}}
-{{- end}}
+  {{range service .Name}}server {{.Node}}-{{.Address}} {{.Address}}:{{.Port}}
+  {{end}}
+{{ end}}
 
 EOF
 
