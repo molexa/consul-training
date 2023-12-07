@@ -50,5 +50,6 @@ curl --request PUT --data @node_deregister.json http://127.0.0.1:8500/v1/catalog
 #########DNS
 
 echo 'alt_domain = "firma.cz"' >> /etc/consul.d/consul.hcl
-service consul reload
+killall consul
+consul agent --config-dir=/etc/consul.d/ &
 dig nc.service.firma.cz @127.0.0.1 -p 8600
