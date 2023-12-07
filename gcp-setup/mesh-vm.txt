@@ -13,11 +13,104 @@ Config {
 }
 EOF
 
+#Beware of permanent config in db!
+
 consul config write /etc/consul.d/proxy_defaults.txt
 
 ###########Gateway
 curl hello-service-fe-team.service.consul:8080
 host hello-service-fe-team.service.consul
+
+##############Backend
+
+gcloud compute instances create backend \
+    --machine-type=e2-small \
+    --network-interface=network-tier=PREMIUM,private-network-ip=10.166.0.60,stack-type=IPV4_ONLY,subnet=default,no-address \
+    --metadata=ssh-keys=ubuntu:"$SSH_KEY" \
+    --create-disk=auto-delete=yes,boot=yes,device-name=instance-1,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231101,mode=rw,size=10
+
+wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+apt update && apt -y install consul net-tools docker.io
+
+cat <<EOF > /etc/consul.d/consul-agent-ca.pem
+-----BEGIN CERTIFICATE-----
+MIIC7jCCApOgAwIBAgIQTpMms10ssUFr9316LLnKCzAKBggqhkjOPQQDAjCBuTEL
+MAkGA1UEBhMCVVMxCzAJBgNVBAgTAkNBMRYwFAYDVQQHEw1TYW4gRnJhbmNpc2Nv
+MRowGAYDVQQJExExMDEgU2Vjb25kIFN0cmVldDEOMAwGA1UEERMFOTQxMDUxFzAV
+BgNVBAoTDkhhc2hpQ29ycCBJbmMuMUAwPgYDVQQDEzdDb25zdWwgQWdlbnQgQ0Eg
+MTA0NDQzODM2MjUxNjcwMjIyMjc5ODE3MjY1NTQwNTg5Mjc1NjU5MB4XDTIzMTEx
+OTE3MzgxMFoXDTI4MTExNzE3MzgxMFowgbkxCzAJBgNVBAYTAlVTMQswCQYDVQQI
+EwJDQTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzEaMBgGA1UECRMRMTAxIFNlY29u
+ZCBTdHJlZXQxDjAMBgNVBBETBTk0MTA1MRcwFQYDVQQKEw5IYXNoaUNvcnAgSW5j
+LjFAMD4GA1UEAxM3Q29uc3VsIEFnZW50IENBIDEwNDQ0MzgzNjI1MTY3MDIyMjI3
+OTgxNzI2NTU0MDU4OTI3NTY1OTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABDAP
+sib/ySicHN8VubHG0rsOjGIetLMieW5E7cN+WzavXzexkHoh6mGHYkOJ6CmXLQOB
+hShQLNp5fVONXUXpHwCjezB5MA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTAD
+AQH/MCkGA1UdDgQiBCCsqKiKImCv3eBMOGk6LwhblwQuOPK8avV7tLkIehiR4zAr
+BgNVHSMEJDAigCCsqKiKImCv3eBMOGk6LwhblwQuOPK8avV7tLkIehiR4zAKBggq
+hkjOPQQDAgNJADBGAiEAq+SoNKIg/OF5hkbEaRTX0SxNN3dRPVCp6XLtOujEZGcC
+IQCbQw5muGXi1zD0IgUNnsZRw6Ln8YQn5nuWjxEUakR3VA==
+-----END CERTIFICATE-----
+EOF
+
+chown -R consul:consul /etc/consul.d/consul-agent-ca.pem
+
+cat << EOF > /etc/consul.d/consul.hcl
+data_dir = "/opt/consul"
+retry_join = ["10.166.0.20"]
+client_addr = "0.0.0.0"
+enable_local_script_checks = true
+encrypt = "sT8+VS42pwKhwgHt8AUig4lRZ2uKfaiDAIkMRgHZNjM="
+
+verify_incoming = false
+verify_outgoing = true
+verify_server_hostname = true
+ca_file = "/etc/consul.d/consul-agent-ca.pem"
+auto_encrypt = {
+  tls = true
+}
+acl{
+  enabled = true
+  default_policy = "deny"
+  enable_token_persistence = true
+  tokens {
+    agent  = "7c18243a-aac7-fe7f-d17d-b196d6782b78"
+  }
+}
+bind_addr = "{{ GetPrivateInterfaces | include \"network\" \"10.0.0.0/8\" | attr \"address\" }}"
+ports {
+  grpc = 8502
+}
+EOF
+
+docker run -d -p 127.0.0.1:8080:8080 us-docker.pkg.dev/google-samples/containers/gke/hello-app:1.0
+
+netstat -tnlp
+
+export ENVOY_VERSION_STRING=1.27.2
+curl -L https://func-e.io/install.sh | bash -s -- -b /usr/local/bin
+func-e use $ENVOY_VERSION_STRING
+cp ~/.func-e/versions/$ENVOY_VERSION_STRING/bin/envoy /usr/local/bin/
+envoy --version
+
+#Generate token for backend service
+consul acl token create -description "Token for backend" -service-identity "backend"
+
+cat << EOF > /etc/consul.d/backend.hcl
+service {
+  name = "backend"
+  token = "<token>"
+  connect {
+    sidecar_service {}
+}
+EOF
+
+systemctl restart consul
+
+consul connect envoy -sidecar-for backend -token=0a7afab7-fb9d-9035-7143-de1de68dc6ea -admin-bind localhost:19001 > hello-proxy.log &
+
 
 ###########Frontend
 reboot
@@ -41,10 +134,21 @@ envoy --version
 
 hello.json:
 "connect": {
-  "sidecar_service": {}
+  "sidecar_service": [
+    {
+      "proxy": [
+        {
+          "upstreams": [
+            {
+              "destination_name": "backend",
+              "local_bind_port": 5001
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
-
-Add tag "v2" on frontend2 and "v1" on frontend1
 
 systemctl restart consul
 
@@ -91,7 +195,7 @@ curl localhost:8080
 #Create intention in GUI
 curl localhost:8080
 
-##############Server
+##############Server - intentions
 
 cat << EOF > /etc/consul.d/failover.txt
 Kind           = "service-resolver"

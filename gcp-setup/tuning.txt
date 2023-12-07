@@ -1,0 +1,38 @@
+######Client - DNS RFC problem
+cat << EOF >> /etc/consul.d/consul.hcl
+dns_config {
+    a_record_limit = 1
+}
+EOF
+
+systemctl restart consul
+
+#######Server - DNS caching
+
+cat << EOF >> /etc/consul.d/consul.hcl
+dns_config = {
+    allow_stale = true,
+    #Default is 10 years
+    max_stale =  "86400s",
+    node_ttl = 5s,
+    service_ttl = {
+        "*" = "5s"
+    }
+}
+EOF
+
+######Server - performance
+
+cat << EOF >> /etc/consul.d/consul.hcl
+performance = {
+    raft_multiplier = 1
+}
+
+limits = {
+   http_max_conns_per_client = 2000
+}
+
+EOF
+
+#######Monitoring
+curl --header "X-Consul-Token: <YOUR_ACL_TOKEN>" https://127.0.0.1:8500/v1/agent/metrics  | jq .
