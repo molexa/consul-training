@@ -2,6 +2,8 @@ SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINtdcUGbrpzcvZVYtyiGea/6TcAEtVBy25e
 PROJECT=$(gcloud config get project)
 gcloud config set compute/zone europe-north1-a
 
+#Create cloud nat
+
 #Frontend
 gcloud compute instances create frontend01 \
     --machine-type=e2-small \
@@ -12,7 +14,7 @@ gcloud compute instances create frontend01 \
 #Frontend
 gcloud compute instances create frontend02 \
     --machine-type=e2-small \
-    --network-interface=network-tier=PREMIUM,private-network-ip=10.166.0.31,stack-type=IPV4_ONLY,subnet=default \
+    --network-interface=network-tier=PREMIUM,private-network-ip=10.166.0.31,stack-type=IPV4_ONLY,subnet=default,no-address \
     --metadata=ssh-keys=ubuntu:"$SSH_KEY" \
     --create-disk=auto-delete=yes,boot=yes,device-name=instance-1,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231101,mode=rw,size=10
 

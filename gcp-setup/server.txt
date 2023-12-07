@@ -9,6 +9,7 @@ gcloud compute instances create server \
     --create-disk=auto-delete=yes,boot=yes,device-name=instance-1,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231101,mode=rw,size=10
 
 ###########
+sudo su
 
 wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
@@ -31,9 +32,12 @@ consul agent --config-dir=/etc/consul.d/ &
 #Or try
 systemctl start consul
 
+netstat -tnlp
+
 ssh -L 8500:127.0.0.1:8500 ubuntu@$SERVER_EXT
 
 #########Catalog
+consul catalog nodes
 
 curl -s http://127.0.0.1:8500/v1/catalog/nodes | jq .
 curl -s http://127.0.0.1:8500/v1/catalog/services | jq .
