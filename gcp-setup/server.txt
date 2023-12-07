@@ -10,11 +10,6 @@ gcloud compute instances create server \
 
 ###########
 
-GATEWAY_EXT=
-SERVER_EXT=
-GATEWAY_IP=10.166.0.10
-SERVER_IP=10.166.0.20
-
 wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
 
@@ -33,10 +28,22 @@ EOF
 
 #Some problem with service on Ubuntu for server deployment
 consul agent --config-dir=/etc/consul.d/ &
+#Or try
+systemctl start consul
 
 ssh -L 8500:127.0.0.1:8500 ubuntu@$SERVER_EXT
 
-#########
+#########Catalog
+
+curl -s http://127.0.0.1:8500/v1/catalog/nodes | jq .
+curl -s http://127.0.0.1:8500/v1/catalog/services | jq .
+
+curl -s --get http://127.0.0.1:8500/v1/catalog/services --data-urlencode 'filter=ServiceTags contains "prometheus"' | jq 'keys | .[]'
+curl -s http://127.0.0.1:8500/v1/catalog/service/frontend | jq '.[] | .Node'
+
+curl --request PUT --data @node_register.json http://127.0.0.1:8500/v1/catalog/register
+curl --request PUT --data @node_deregister.json http://127.0.0.1:8500/v1/catalog/deregister
+#########DNS
 
 echo 'alt_domain = "firma.cz"' >> /etc/consul.d/consul.hcl
 service consul reload
