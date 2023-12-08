@@ -5,6 +5,8 @@ connect {
 }
 EOF
 
+killall....
+
 cat << EOF > /etc/consul.d/proxy_defaults.txt
 Kind      = "proxy-defaults"
 Name      = "global"
@@ -22,6 +24,10 @@ curl hello-service-fe-team.service.consul:8080
 host hello-service-fe-team.service.consul
 
 ##############Backend
+SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINtdcUGbrpzcvZVYtyiGea/6TcAEtVBy25eir+XmW+aA martin@olexa.dev"
+PROJECT=$(gcloud config get project)
+gcloud config set compute/zone europe-north1-a
+
 
 gcloud compute instances create backend \
     --machine-type=e2-small \
@@ -76,7 +82,7 @@ acl{
   default_policy = "deny"
   enable_token_persistence = true
   tokens {
-    agent  = "7c18243a-aac7-fe7f-d17d-b196d6782b78"
+    agent  = "<AGENT_TOKEN>"
   }
 }
 bind_addr = "{{ GetPrivateInterfaces | include \"network\" \"10.0.0.0/8\" | attr \"address\" }}"
@@ -101,19 +107,21 @@ consul acl token create -description "Token for backend" -service-identity "back
 cat << EOF > /etc/consul.d/backend.hcl
 service {
   name = "backend"
-  token = "<token>"
+  port = 8080
+  token = "9256807e-7850-d5d9-4cd9-9a7de8ab7bde"
   connect {
     sidecar_service {}
+}
 }
 EOF
 
 systemctl restart consul
 
-consul connect envoy -sidecar-for backend -token=0a7afab7-fb9d-9035-7143-de1de68dc6ea -admin-bind localhost:19001 > hello-proxy.log &
+consul connect envoy -sidecar-for backend -token=9256807e-7850-d5d9-4cd9-9a7de8ab7bde -admin-bind localhost:19001 > hello-proxy.log &
 
 
 ###########Frontend
-reboot
+service docker restart
 
 cat << EOF >> /etc/consul.d/consul.hcl
 bind_addr = "{{ GetPrivateInterfaces | include \"network\" \"10.0.0.0/8\" | attr \"address\" }}"
@@ -152,7 +160,7 @@ hello.json:
 
 systemctl restart consul
 
-consul connect envoy -sidecar-for hello-service-fe-team -token=0a7afab7-fb9d-9035-7143-de1de68dc6ea -admin-bind localhost:19001 > hello-proxy.log &
+consul connect envoy -sidecar-for hello-service-fe-team -token=af1d7dc0-a9c8-a0a7-b53d-ccd5b4ac1ae2 -admin-bind localhost:19001 > hello-proxy.log &
 
 netstat -tnlp
 

@@ -46,7 +46,7 @@ helm repo add hashicorp https://helm.releases.hashicorp.com
 kubectl create namespace consul
 kubectl create secret generic consul-gossip-encryption-key --from-literal=key="sT8+VS42pwKhwgHt8AUig4lRZ2uKfaiDAIkMRgHZNjM=" --namespace consul
 kubectl create secret generic consul-ca-cert --from-file='tls.crt=./consul-agent-ca.pem' --namespace consul
-kubectl create secret generic consul-bootstrap-acl-token --from-literal=token="e3ecf5bb-8572-5088-2afe-a4c92649da34" --namespace consul
+kubectl create secret generic consul-bootstrap-acl-token --from-literal=token="<BOOTSTRAP_TOKEN>" --namespace consul
 
 ##################
 
@@ -83,7 +83,7 @@ client:
    "default_policy": "deny",
    "enable_token_persistence": true,
    "tokens" : {
-    "agent" : "7c18243a-aac7-fe7f-d17d-b196d6782b78"
+    "agent" : "<AGENT_TOKEN>"
     }
    }
   }
@@ -147,7 +147,7 @@ spec:
     app: hello-server
   ports:
   - protocol: TCP
-    port: 80
+    port: 8080
     targetPort: 8080
 
 kubectl --namespace fe-team apply -f hello_service.yaml

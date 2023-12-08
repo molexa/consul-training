@@ -47,10 +47,10 @@ acl {
 }
 
 
-systemctl restart consul
+killall...
 
 DC2 server:
-
+#Change lan retry_join
 cat << EOF >> /etc/consul.d/consul.hcl
 datacenter = "dc2"
 primary_datacenter = "dc1"
@@ -61,8 +61,12 @@ EOF
 
 acl {
   enable_token_replication = true
-  replication = "<secret_id>"
+  tokens {
+    replication = "<REPLICATION_TOKEN>"
+  }
 }
+
+bootstrap_expect=1
 
 systemctl restart consul
 
@@ -97,7 +101,7 @@ dig hello-service-fe-team.service.consul @localhost -p 8600
 dig hello-service-fe-team.service.dc1.consul @localhost -p 8600
 dig hello-service-fe-team.service.dc2.consul @localhost -p 8600
 
-curl http://localhost:8500/v1/query --header "X-Consul-Token: 138ad8d7-25b9-d7ff-5017-82d88606313d" --request POST --data '
+curl http://localhost:8500/v1/query --header "X-Consul-Token: e3ecf5bb-8572-5088-2afe-a4c92649da34" --request POST --data '
 {
   "Name": "",
   "Template": {
