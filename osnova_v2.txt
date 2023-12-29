@@ -1,0 +1,440 @@
+Consul training	
+	
+Peter Palla - lab1	
+Vratislav Trefil - lab2	
+	
+https://github.com/molexa/consul-training/tree/main/gcp-setup	
+	
+	
+Osnova	
+predstaveni	
+v Mallu 8 let	
+primarne na komunikaci Microservices a konfiguraci 	
+od zacatku na VMs, potom pres x platforem (>2000 endpointu)	
+hlavni dealbreaker je umozneni prechodu mezi platformami (Baremetal -> Openstack -> K8S -> Hybrid) a distribuovana sprava - prechod na microservices proces vyvoje	
+jake jsou ocekavani ucastniku	
+ Organizace	
+9 - 17, pauza na obed, 15 minut pauzy po 1,5h	
+10:30 pauza	
+12:00 - 12:30 obed	
+14:00 pauza	
+15:30 pauza	
+Prvni cast - k cemu se consul hodi a k cemu ne:	
+Highlevel popis	
+opensource (golang)	
+free a placena verze (entreprise)	
+placena verze ma nasledujici features	
+auditing	
+network partitions a namespacy	
+backup voters	
+https://developer.hashicorp.com/consul/docs/enterprise	
+pro ruzne OS (win, linux, bsd, solaris)	
+Rozdil mezi tradicnim a modernim IT	
+centralizace v tymech	
+rotace ticketu	
+popis F5 loadbalanceru	
+manualni nebo poloautomatizovana sprava - chyby, prostoje	
+Microservices kde je hodne backendu	
+Kde se backendy casto meni 	
+Kde je sprava rozdelena do vic tymu	
+Kde lze prechazet mezi platformami - problem uzavreni v K8S,  jednom cloudu	
+multiplatformnost	
+Neni vhodny v situacich	
+staticka infrastruktura	
+zamereni na jednu platformu	
+3 hlavni cile / smery consulu	
+katalog - service discovery	
+konfigurace - K/V	
+komunikace - mesh	
+------------	
+Popis labu a login:	
+GCP projekty	
+Zkusit si login, pripravit si ssh klic	
+Pripravit si seznam oblibenych editoru, commandu apod. Ja mam vim, net-tools, dnsutils, jq	
+Prace v GCP cloud console	
+	
+Service discovery	
+Tvorba gateway a serveru	
+gateway bude univerzalni klient	
+terminologie:	
+server/master - control plane, agent ktery ma flag "server"	
+agent/klient - bezici proces, kteri neni server	
+leader/follower - stav clusteru (serveru), kdo je ridici	
+Instalace baliku a spusteni single instance serveru	
+popsat jednotlive prvky configu	
+Ukazka portu a servicy netstatem	
+Prohlidka GUI - catalog	
+nody	
+implicitne zaregistrovan server - taky je noda	
+servicy	
+kv (prazdne)	
+Spusteni dvou frontendu 	
+provadi fe-team (vyvojari, self service)	
+instalace agenta	
+stejny package jako server, jiny config	
+instalace s 3 sluzbami	
+dve http, jedna tcp	
+Registrace sluzby	
+ukazka v gui	
+uz to prinasi benefit	
+katalogizace	
+rychly operating view stavu	
+popsat distribuovanou spravu	
+pridavani service a nodes se deje mimo spravce consulu	
+Prace s katalogem pres api	
+Listing service	
+consul catalog nodes	
+consul catalog services	
+podobne jde pouzit i api, respektive lepe	
+curl -s http://127.0.0.1:8500/v1/catalog/nodes | jq .	
+curl -s http://127.0.0.1:8500/v1/catalog/services | jq .	
+Usecase : 	
+generovani dokumentace - neni to ale CMDB	
+prehled infra - kde co bezi, stavu pro debugging	
+Prochazeni katalogu v cyklu - info k prometheus scrapingu :	
+curl -s --get http://127.0.0.1:8500/v1/catalog/services --data-urlencode 'filter=ServiceTags contains "prometheus"' | jq 'keys | .[]'	
+curl -s http://127.0.0.1:8500/v1/catalog/service/frontend | jq '.[] | .Node'	
+Pridani / odebrani nody	
+usecase: systemy ktere nemaji agenta nebo je to neprakticke	
+curl --request PUT --data @node_register.json http://127.0.0.1:8500/v1/catalog/register	
+curl --request PUT --data @node_deregister.json http://127.0.0.1:8500/v1/catalog/deregister	
+https://developer.hashicorp.com/consul/api-docs/catalog	
+Ukazka dvou druhu healthchecku (http, bash)	
+http, tcp, udp, grpc, skript	
+implicitni healthcheck agenta	
+muze byt vicenasobny	
+tcp a disable pomoci value	
+instalace a ukazka v gui	
+vypnout / zapnout	
+Ukazka DNS balancingu a settings pomoci dnsmasq	
+primarni vec	
+consul vytvari dns recordy podle urcitych pravidel	
+nizke ttl	
+ukazka digu proti consul masteru a proti agentovi	
+problem jak to zapojit	
+vic moznosti, systemd resolved, dnsmasq...	
+nastaveni dnsmasq pro consul domenu na gateway	
+skladani dns jmen podle service a tagu	
+ukazka zmeny tagu na jedne node	
+killnuti healthchecku	
+usecase s kapacitou node (batch processing)	
+usecase s masterem (vault a return kod)	
+konfigurace alt domain - zhodnoceni integrace do normalniho DNS (ttl, state clusteru)	
+viz commandy	
+	
+	
+KV 	
+popis	
+jednoducha KV databaze - dle doku se ani nesnazi byt plnohodnotna (vs Amazon DynamoDB)	
+data se drzi na serverech a synchronizuji se automaticky	
+muze byt 	
+consistent - nevyhodou je vyssi latence kvuli verifikaci	
+stale - rychle, ale muze vracet stare hodnoty, kdokoliv muze odpovedet	
+default - neco mezi, muze u readu dojit k race condition pri volbe mastera 	
+umi zamky pro voting mechanismus - nezkouseno, ale pouziva to dkron treba	
+dobra integrace s consul template	
+usecase: feature flagy a haproxy template	
+debata o feature flagach	
+zmena konfigurace u neni nutne redeployovat	
+ruzne moznosti 	
+sql databaze	
+consul template	
+zaroven neni zavislost na nejake db (async), lepsi performance apod	
+hodi se pro vypinani modulu, rychle zmeny	
+"operativni"	
+nevyhodou proti treba gitu je absence audit ve free verzi	
+nevyhodou proti db je mozna nekonzistence	
+usecase modifikace html	
+ukazka KV v GUI - zapsani hodnoty	
+instalace consul template	
+konfigurace templatu a ukazka	
+vyhoda - funguje i kdyz chcipne consul nebo template servica	
+nevyhoda - otazka konzistence - pokud cast node ma jinej config	
+debata o proxy v consulu svete	
+zda lo by se ze se service discovery haproxy neni potreba	
+ale problemy - plynouci z toho ze traffic jde naprimo	
+pristup pro normalni usery - nemeli jsme integraci do dns	
+prace s  http (session affinity balancing)	
+problem s dns caching (php)	
+ssl offloading	
+logging	
+ukazka instalace proxy vcetne reloadovani	
+vyuziva data z katalogu vcetne tagu/meta	
+wait specifikuje min a max time na konvergenci clusteru	
+	
+Security	
+3 modely - encryption, TLS a ACL	
+pouzivaji se pro ruzne situace a doplnuji se:	
+encryption pro pripojeni do clusteru a membership	
+tls pro rpc cally a server voting	
+acl pro fukncionalitu v clusteru	
+encryption	
+proti "uklizecka s kabelem attacku	
+enkryptuje komunikaci v clusteru shared klicem	
+tyka se pouze control plane a to gossip (clustering), ne microservice	
+ridi pristup do clusteru vsechno / nic - dobre pro oddeleni environmentu	
+base64, 32bytu, lze generovat consul keygen	
+lze aplikovat i na existujici instalaci - postup je v doku	
+distribuovat klice, nejdriv dat encrypt na false a pak true	
+naconfigurovat mastera a kouknout na clienty, pak opravit	
+TLS	
+resi identity agentu a encryption rpc	
+nutne pro obranu proti rogue serverum - fatalni vec (nejde resit na urovni ACL)	
+server noda obdrzi vsechny kv a tokeny	
+historka s qorum na test env	
+pridani a smazani server node	
+postup:	
+vygenerovat CA keypair a rozdistribuovat pubkey - na vsechny nody vcetne agentu	
+vygenerovat server keypair a distribuovat na servery - servery maji stejny keypair a cert	
+klienti jdou nakonfigurovat aby si certifikat generovali sami ze serveru (ca connect)	
+verify_incoming na false je kvuli problemu s helmem v k8s	
+realne je hlavni obrana serveru a ACL	
+matouci je ze, members jdou videt, ale agenti neprovedou rpc call na katalog	
+consul catalog nodes	
+zkusit nastavit na agentovi server	
+sice je v members jako server, ale neni voter a neaplikuje commits	
+consul operator raft list-peers	
+pozor na expirace!!!	
+	
+ACL	
+RBAC - rizeni prav na resourcy v ramci clusteru	
+bez ACL muzou v clusteru vsichni vsechno	
+pridavat se do existujicich service	
+hierarchicky	
+rule specifikuje operaci	
+policy obsahuje x rulu	
+token obsahuje x policies	
+implementace	
+zapnuti ACL subsystemu s allow policy	
+vygenerovani boostrap "master tokenu"	
+muze vsecko, root token	
+global management policy	
+prohlidka gui	
+vytvoreni jednotlivych policy tokenu	
+server	
+aplikovat do konfigurace global token	
+prepnout policy na deny	
+reload a prohlidka gui	
+agent - registrace a ready	
+udelat z gui, global read policy a node write policy	
+lze specifikovat podrobneji, davame global-read	
+lze generovat token primo pro konkretni nodu (node identity)	
+zkouska consul catalog nodes z gateway bez tokenu 	
+rozdil proti gossip members (tls a encrypt) vs catalog	
+nastaveni agentu s tokenem a policy deny	
+token je potreba i pro consul members	
+dns - requesty	
+ukazka - neprijemny efekt	
+prestalo fungovat protoze na dns se pouziva anonymous (mechanismus dns)	
+vytovrit policy a aplikovat ji na anonymous token	
+service - registrace a zmeny	
+potrebuju zabranit aby se kdokoliv registroval do servicy	
+muze krast data	
+i omylem, spatne se pak hledaji chyby	
+tokeny lze generovat i pres cli / api, pripadne v gui	
+vygenerujeme na serveru token	
+rovnou se vytvori i policy, jde videt v gui (write na servicu, read all)	
+lze predat v konfiguraci nebo pres api pri zmenach	
+aplikovat v configu na frontend node a restartovat, frontend a hello servica	
+ui a kv	
+nody mohou pres global token cist	
+lze pripadne pro operatory vytvorit vlastni tokeny	
+lze specifikovat jednotlive foldery (a tvorit namespacy)	
+distribuce	
+tokeny lze vyrabet i automatizovane pomoci auth motedy	
+mimo scope	
+K8S	
+instalace do podu jako sidecar	
+zdanlive nejednodussi, neni nutne resit integraci	
+moznost nasadit do cehokoliv - i kdyz nemam kontrolu	
+problemy	
+herding problem (hromadne restarty)	
+utilizace	
+komponenta pro spravu navic	
+konflikt healthchecku	
+catalog sync	
+nejsem odbornik, urcite jde implementace vylepsit	
+"minimalni" setup	
+consul cast bezi v samostatnem namespacu	
+neresime ted ACL - token na vsechno	
+chceme syncovat pody jako nodes a servicy	
+postup	
+-------------2 . DEN ----------------------	
+Shrnuti:	
+consul -autocomplete-install	
+udelat pull	
+mame consul cluster s jednim masterem	
+mame deploynute VMka se servicami a healthechecky	
+mame zapnutou securitu	
+umime pracovat s KV	
+Skritek setrilek	
+nascalovat zpatky GKE	
+unsuspendovat VMKa	
+vyrobit cluster - trva dlouho	
+nasetovat secrety	
+pres heml deploynout consuli infra do k8s	
+config	
+cluster muze bezet cely v k8s	
+my mame externi servery	
+uvnitr jsou klienti - resi komunikaci se servery a dnsko (daemon set)	
+trochu zabugovane (nebo ne uplne dobra doku, viz acl, uninstall webhooku)	
+deploy testovaci servicy	
+! consul-sync je fatalni servica, pokud nasilne umre zustanou v clusteru residua !	
+zkusit zabit	
+zkusit curlem rotaci, pokud bude zlobit viz tuning	
+v Mallu:	
+puvodne coredns nasmerovane na servery	
+problem s timeouty pri praci na serverech	
+nyni agent na kazdem workeru v ramci demon setu	
+jedna instance catalog sync	
+pozor na restarty	
+consul-template bezi v sidecar	
+opravit consul template	
+consul {	
+token = ""	
+}	
+Clustering (server.txt)	
+Single site	
+reseni pro jedno DC	
+nebo vice site s nizkou latenci	
+smyslem je zvyseni availability	
+postup	
+odstranit bootstrap z konfigurace novych serveru	
+jakmile je cluster vyrobeny nechat pripadne jenom na hlavni node (jinak neprida dalsi)	
+pridat dalsi instance serveru - zmenit IP a name	
+zkopirovat nastaveni vcetne server certifikatu	
+pridat retry_join	
+pripadne zmenit bootstrap expect - muze byt a nemusi	
+na agentech upravit join seznam	
+state clusteru 	
+consul members	
+consul operator raft list-peers	
+pozor na kvorum pri testovani apod	
+consul leave	
+v leaft member statu zustane do reapnuti (jde konfigurovat)	
+autopilot reapuje servery z raftu	
+consul operator autopilot get-config	
+Multi site	
+situace se komplikuje	
+duvody proc nepouzit single site deployment	
+intercluster komunikace (gossip) neni stavena na vyssi latenci	
+vsichni votuji v celem clusteru (failure domena, dve DC)	
+jak resit afinitu	
+teoreticky lze operovat pres tagy	
+dva modely - Cluster peering a WAN federation	
+viz obrazek	
+Peering	
+nezavisle clustery	
+samostatne nastaveni a sprava	
+zpusob jak v opensource rozdelit na network partitions	
+exportuji si service endpointy (pro mesh)	
+peering cluster je videt jako sada endpointu	
+consul resi integraci mesh mezi sebou	
+WAN federation	
+primarni DC kde se deje sprava	
+replikace acl tokenu, bohuzel ne KV (externi tool)	
+v opensource je nutne aby na sebe vsichni videli (vcetne agentu)	
+plne funguje service discovery	
+Instalace WAN federation	
+Postup	
+vyrobit ACL replication token	
+vyrobit server a frontend v dc2	
+zmenit config - pridat info o druhem DC - wan join a primary DC	
+primary datacentrum musi byt nastaveno to co konfiguruje (a ma hlavni info)	
+consul members / consul members -wan	
+consul operator raft list-peers	
+Prepared query	
+DNS resolvuje v ramci DC defaultne	
+je mozne se explicitne dotazat na druhe - service.dc2.consul	
+vypnout hello servicu na frontendu v dc1 a k8s	
+dostavam NXDOMAIN	
+pomoc prepared query lze nakonfigurovat failover	
+ruzne moznosti viz dokumentace, napr verzovani pres tagy	
+nearestN bude failovrovat na nejblizsi dle round-trip-time	
+zmeni se dns - na <service>.query.consul	
+pridat query a ukazat z gw	
+Service mesh	
+Sit pro microservicy	
+Nadstavba, resi genericke problem microservices deploymentu	
+popsat pribeh cesty od static loadbalanceru, pres dns, haproxy po mesh	
+deduplikace effortu, "nezajimave"	
+problem firewallu - nelze pracovat s IP, nutne service labely	
+genericke problemy:	
+tls	
+monitoring & logging	
+traffic redirection / splitting	
+access control	
+failure handling / retries	
+DSN nezasahuje do prime komunikace	
+Haproxy je single point 	
+resenim je mesh - disitribuovane envoy proxy ovladane consulem	
+Scenar : Izolace hello-service na frontendu, DC failover, traffic routing	
+simulace na VM, na K8S GKE je nejaky problem (asi s helmem)	
+zapnout connect / inject	
+nejdrive na serverech s restartem	
+chceme pro scenar nastavit defaultne mesh proxy na http	
+test curl z gatewaye (prochazi)	
+vytvorime backend pro frontend servicu	
+nastaveni bind adresy v consulu	
+docker run s localhost portem	
+instalace envoy	
+kouknout do gui na zmenu (failing envoy)	
+spusteni envoy	
+chceme hello-service schovat na localhost za envoy proxy	
+reboot kvuli docker networku	
+spusteni mesh service na proxy	
+vytvoreni "dummy" service	
+instalace a spusteni envoye	
+test pred a po intentions	
+slo by resit pres ingress gateway	
+failover	
+rizeni pomoci service-resolver	
+lepsi, vic features a moznosti	
+vyrobit na serveru konfiguraci a nejdriv zkusit curlem naprimo a pak shodit dc1	
+funguje by default afinity	
+subset path routing	
+umoznuje routing dle http uri	
+pripadne i headeru apod	
+jak na subset servicy, tak i na jine servicy	
+zkontrolovat tagy u servicy a vyrobit routing	
+test curlem	
+nektere manipulace (verze) jde delat i pres prepared query, ale obecne mesh skrz L7 umi mnohem vic veci	
+Dalsi topics	
+Gateway - gateway pro klienty mimo mesh, resi izolaci siti apod	
+mode none	
+mode remote	
+mode local	
+Peering multicluster	
+setreni trafficu - komunikace skrz mesh gateway	
+	
+Problemy a tuning	
+Problem s DNS	
+RFC 3484 Section 6 Rule 9	
+DNS response seradi a prvni	
+zalezi na implementacich glibc a v konkretnim casu	
+Performance	
+raft_multiplier	
+defaultni hodnota je 5 pro dev/test	
+ovlivnuje heartbeat a leader election timeouty (nasobky) 	
+stale pro dns / kv	
+hlavne problem s vykonnosti dnska	
+stale je default na 10 let	
+nastaveni cache	
+limit na http cally	
+kvuli prometheus scrapingu	
+Metriky	
+server (agent) exposuje, viz tuning.txt	
+safari: http://cz-dc-v-445.mall.local:3000/d/ESJW3aRmz/consul-cluster-health?orgId=1&refresh=10s	
+Monitoring	
+hlavni koukat na log commit v metrikach	
+v Mallu vysoky io	
+test writu do consul kv	
+pocet consul voteru	
+resolve dns consul.service.consul	
+	
+	
+--------	
+	
+Dotaznik : https://docs.google.com/forms/d/1fRqhxnaIHTdapbEUUGjpnUOgpX-9p9OzbXiPc2L7rgM/edit - poslat i me -> hodit do mailu	
+Git repo - naklonovat jestli je potreba	
+LAB. smazal bych	
