@@ -1,4 +1,4 @@
-WORK IN PROGRESS
+-------WORK IN PROGRESS-------------
 
 ###########Server
 cat << EOF >> /etc/consul.d/consul.hcl

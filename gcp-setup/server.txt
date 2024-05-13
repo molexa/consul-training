@@ -2,9 +2,9 @@ SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINtdcUGbrpzcvZVYtyiGea/6TcAEtVBy25e
 PROJECT=$(gcloud config get project)
 gcloud config set compute/zone europe-north1-a
 
-gcloud compute instances create server3 \
+gcloud compute instances create server1 \
     --machine-type=e2-medium \
-    --network-interface=network-tier=PREMIUM,private-network-ip=10.166.0.22,stack-type=IPV4_ONLY,subnet=default \
+    --network-interface=network-tier=PREMIUM,private-network-ip=10.166.0.20,stack-type=IPV4_ONLY,subnet=default \
     --metadata=ssh-keys=ubuntu:"$SSH_KEY" \
     --create-disk=auto-delete=yes,boot=yes,device-name=instance-1,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231101,mode=rw,size=10
 
@@ -36,6 +36,7 @@ netstat -tnlp
 
 ssh -L 8500:127.0.0.1:8500 ubuntu@$SERVER_EXT
 
+#####Osnova
 #########Catalog
 consul catalog nodes
 

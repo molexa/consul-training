@@ -1,5 +1,8 @@
 Consul training
 
+https://github.com/molexa/consul-training/tree/main/gcp-setup
+
+
 Osnova
 - predstaveni
     - v Mallu 8 let
@@ -15,13 +18,20 @@ Osnova
         - 15:30 pauza
 - Prvni cast - k cemu se consul hodi a k cemu ne:
     - Highlevel popis
-        - opensource (golang)
-        - free a placena verze (entreprise)
+        - neni to primo opensource (vetsina v golangu), ale "Business Source License"
+            - cili primarne na jejich konkurenci (podobne jako ELK)
+        - IBM akvizice
+        - free (community) a placena verze (entreprise)
             - placena verze ma nasledujici features
                 - auditing
                 - network partitions a namespacy
                 - backup voters
+                - read scaling
                 - https://developer.hashicorp.com/consul/docs/enterprise
+                - AWS cenik: 50 nodes s "bronze" support = $8.000 rocne
+        - cloud varianta (HCP)
+                - control plane v cloudu
+                - pay-as-you-go
         - pro ruzne OS (win, linux, bsd, solaris)
     - Rozdil mezi tradicnim a modernim IT
         - centralizace v tymech
@@ -34,25 +44,30 @@ Osnova
     - Kde lze prechazet mezi platformami - problem uzavreni v K8S,  jednom cloudu
         - multiplatformnost
     - Neni vhodny v situacich
-        - staticka infrastruktura
-        - zamereni na jednu platformu
+        - staticka infrastruktura (pets)
+        - zamereni na jednu platformu (cloud)
 - 3 hlavni cile / smery consulu
     - katalog - service discovery
     - konfigurace - K/V
     - komunikace - mesh
 ------------
 - Popis labu a login:
+    #project_setup.txt
     - GCP projekty
     - Zkusit si login, pripravit si ssh klic
     - Pripravit si seznam oblibenych editoru, commandu apod. Ja mam vim, net-tools, dnsutils, jq
-
+    - prace v GCP cloud console
+        - html5 gui
+        - cloud console - ubuntu VM, trvaly disk
+        - gcloud command a api
 - Service discovery
-    - Tvorba gateway a serveru
-        - gateway bude univerzalni klient
+    #server.txt
+    - Tvorba serveru a gateway
+        - gateway bude univerzalni klient pro pokusovani
         - terminologie:
+            - agent/klient - bezici proces consulu
             - server/master - control plane, agent ktery ma flag "server"
-            - agent/klient - bezici proces, kteri neni server
-            - leader/follower - stav clusteru (serveru), kdo je ridici
+            - leader/follower - stav clusteru serveru, kdo je ridici
     - Instalace baliku a spusteni single instance serveru
         - popsat jednotlive prvky configu
     - Ukazka portu a servicy netstatem
@@ -69,7 +84,9 @@ Osnova
         - dve http, jedna tcp
     - Registrace sluzby
         - ukazka v gui
-        - uz to prinasi benefit - katalogizace
+        - uz to prinasi benefit
+            - katalogizace
+            - rychly operating view stavu
         - popsat distribuovanou spravu
             - pridavani service a nodes se deje mimo spravce consulu
     - Prace s katalogem pres api
@@ -80,7 +97,7 @@ Osnova
             - curl -s http://127.0.0.1:8500/v1/catalog/nodes | jq .
             - curl -s http://127.0.0.1:8500/v1/catalog/services | jq .
             - Usecase : 
-                - generovani dokumentace - neni to ale CMDB
+                - generovani dokumentace - neni to ale CMDB (dalsi napojeni, mnozstvi informaci, export)
                 - prehled infra - kde co bezi, stavu pro debugging
                 - Prochazeni katalogu v cyklu - info k prometheus scrapingu :
                     - curl -s --get http://127.0.0.1:8500/v1/catalog/services --data-urlencode 'filter=ServiceTags contains "prometheus"' | jq 'keys | .[]'
@@ -108,7 +125,7 @@ Osnova
         - skladani dns jmen podle service a tagu
             - ukazka zmeny tagu na jedne node
         - killnuti healthchecku
-            - usecase s kapacitou node (batch processing)
+            - usecase s kapacitou node (queue - batch processing)
             - usecase s masterem (vault a return kod)
         - konfigurace alt domain - zhodnoceni integrace do normalniho DNS (ttl, state clusteru)
             - viz commandy
@@ -117,30 +134,32 @@ Osnova
 - KV 
     - popis
         - jednoducha KV databaze - dle doku se ani nesnazi byt plnohodnotna (vs Amazon DynamoDB)
+            - feature set je dokoncen
         - data se drzi na serverech a synchronizuji se automaticky
         - muze byt 
             - consistent - nevyhodou je vyssi latence kvuli verifikaci
             - stale - rychle, ale muze vracet stare hodnoty, kdokoliv muze odpovedet
             - default - neco mezi, muze u readu dojit k race condition pri volbe mastera 
-        - umi zamky pro voting mechanismus - nezkouseno, ale pouziva to dkron treba
+        - umi distribuovane zamky pro voting mechanismus - nezkouseno, ale pouziva to dkron treba
     - dobra integrace s consul template
     - usecase: feature flagy a haproxy template
     - debata o feature flagach
-        - neni nutne redeployovat
-        - zaroven neni zavislost na nejake db (async), lepsi performance apod
-        - hodi se pro vypinani modulu, rychle zmeny
+        + neni nutne redeployovat pro zmenu configu
+        + zaroven neni zavislost na nejake db (async), lepsi performance apod
+        + hodi se pro vypinani modulu, rychle zmeny
         - nevyhodou proti treba gitu je absence audit ve free verzi
+        - dalsi nevyhodou je proti db je mozna nekonzistence
     - usecase modifikace html
         - ukazka KV v GUI - zapsani hodnoty
         - instalace consul template
         - konfigurace templatu a ukazka
         - vyhoda - funguje i kdyz chcipne consul nebo template servica
-        - nevyhoda - otazka konzistence - pokud cast node ma jinej config
+        - nevyhoda - konzistence - pokud cast node ma jinej config
     - debata o proxy v consulu svete
         - zda lo by se ze se service discovery haproxy neni potreba
         - ale problemy - plynouci z toho ze traffic jde naprimo
             - pristup pro normalni usery - nemeli jsme integraci do dns
-            - prace s  http (session affinity balancing)
+            - prace s http (session affinity balancing)
             - problem s dns caching (php)
             - ssl offloading
             - logging
@@ -185,14 +204,14 @@ Osnova
     - ACL
         - RBAC - rizeni prav na resourcy v ramci clusteru
         - bez ACL muzou v clusteru vsichni vsechno
-            - registrovat se jako server a narusit funkcnost
             - pridavat se do existujicich service
+            - cist vsechno v KV
         - hierarchicky
             - rule specifikuje operaci
             - policy obsahuje x rulu
             - token obsahuje x policies
         - implementace
-            - zapnuti ACL subsystemu s allow policy
+            - zapnuti ACL subsystemu s initial tokenem a deny policy, nebo:
             - vygenerovani boostrap "master tokenu"
                 - muze vsecko, root token
                 - global management policy
@@ -213,7 +232,7 @@ Osnova
                 - dns - requesty
                     - ukazka - neprijemny efekt
                     - prestalo fungovat protoze na dns se pouziva anonymous (mechanismus dns)
-                    - vytovrit policy a aplikovat ji na anonymous token
+                    - vytvorit policy a aplikovat ji na anonymous token
                 - service - registrace a zmeny
                     - potrebuju zabranit aby se kdokoliv registroval do servicy
                         - muze krast data
@@ -233,7 +252,7 @@ Osnova
 - K8S
         - instalace do podu jako sidecar
             - zdanlive nejednodussi, neni nutne resit integraci
-            - moznost nasadit do cehokoliv - i kdyz nemam kontrolu
+            - moznost nasadit do cehokoliv - i kdyz nemam kontrolu nad clusterem
             - problemy
                 - herding problem (hromadne restarty)
                 - utilizace
@@ -256,13 +275,21 @@ Osnova
                     - trochu zabugovane (nebo ne uplne dobra doku, viz acl, uninstall webhooku)
                 - deploy testovaci servicy
             - ! consul-sync je fatalni servica, pokud nasilne umre zustanou v clusteru residua !
+                - zkusit zabit
+                - zkusit curlem rotaci, pokud bude zlobit viz tuning
         - v Mallu:
             - puvodne coredns nasmerovane na servery
-                - problem s timeouty pri praci na serverech
+                - problem s timeouty pri maintenance na serverech (masterech)
             - nyni agent na kazdem workeru v ramci demon setu
             - jedna instance catalog sync
                 - pozor na restarty
             - consul-template bezi v sidecar
+
+- opravit consul template
+                consul {
+                    token = ""
+                }
+
 - Clustering #server.txt
     - Single site
         - reseni pro jedno DC
@@ -281,8 +308,9 @@ Osnova
                 - consul operator raft list-peers
             - pozor na kvorum pri testovani apod
                 - consul leave
-                - v leaft member statu zustane do reapnuti (jde konfigurovat)
+                - v left member statu zustane do reapnuti (jde konfigurovat)
                 - autopilot reapuje servery z raftu
+                - consul operator autopilot get-config
     - Multi site
         - situace se komplikuje
         - duvody proc nepouzit single site deployment
@@ -339,6 +367,8 @@ Resume prvni casti:
 - Service mesh
     - Sit pro microservicy
     - Nadstavba, resi genericke problem microservices deploymentu
+        - popsat pribeh cesty od static loadbalanceru, pres dns, haproxy po mesh
+            - centralizace -> decentralizace -> centralizovana decentralizace
         - deduplikace effortu, "nezajimave"
         - problem firewallu - nelze pracovat s IP, nutne service labely
         - genericke problemy:
@@ -350,6 +380,9 @@ Resume prvni casti:
         - DSN nezasahuje do prime komunikace
         - Haproxy je single point 
         - resenim je mesh - disitribuovane envoy proxy ovladane consulem
+    - Consul service mesh je na trhu cca uprostred
+        - istio je slozitejsi na instalaci ale ma vic features
+        - linkerd je jednodussi na zprovozneni
     - Scenar : Izolace hello-service na frontendu, DC failover, traffic routing
         - simulace na VM, na K8S GKE je nejaky problem (asi s helmem)
         - zapnout connect / inject
@@ -367,6 +400,8 @@ Resume prvni casti:
             - vytvoreni "dummy" service
             - instalace a spusteni envoye
             - test pred a po intentions
+            - slo by resit pres ingress gateway - nove api gateway
+                - samostatna instance pro routing do mesh (http nebo tcp)
         - failover
             - rizeni pomoci service-resolver
             - lepsi, vic features a moznosti
@@ -380,10 +415,41 @@ Resume prvni casti:
             - test curlem
             - nektere manipulace (verze) jde delat i pres prepared query, ale obecne mesh skrz L7 umi mnohem vic veci
     - Dalsi topics k mesh
-        - Gateway - gateway pro klienty mimo mesh, resi izolaci siti apod
+        - mesh gateway - gateway pro komunikaci mezi DCs nebo partitions
+        - vytvorim config pro mesh gateway a pustim samostatnou envoy
+            - mode none - bez gw, servicy jdou pres envoye naprimo
+            - mode remote - servicy jdou na remote gateway
+            - mode local - servicy jdou pres lokalni gateway
+        - pres gateway muzu nastavit i control plane traffic (wan federation)
+        - api gateway - vstup do mesh pro ostatni servicy
+            - nahrada za ingress gateway
+            - opet envoy se specialnim configem
+            - umi routovat http requesty dle pravidel (path, weight)
         - Napojeni na metriky
+            - do configu envoy pridam metrics endpoint
+            - jdou potom zobrazovat i prehledne v gui
+            - informace o rtt i bez toho
+        - Peering multicluster
 
 - Problemy a triky
     - Problem s DNS
-        - minimalne v linuxu ale snad i v RFC
-        - DNS response seradi a vybere prvni 3
+        - RFC 3484 Section 6 Rule 9
+        - DNS response seradi a vybere prvni
+        - zalezi na implementacich glibc a v konkretnim casu
+    - Performance
+        - raft_multiplier
+            - defaultni hodnota je 5 pro dev/test
+            - ovlivnuje heartbeat a leader election timeouty (nasobky)
+        - stale pro dns / kv - hlavne problem s vykonnosti dnska
+            - default 10 let
+        - nastaveni DNS cache (ttl)
+        - limit na http cally - kvuli prometheus scrapingu
+    - Metriky
+        - server (agent) exposuje, viz tuning.txt
+        - safari: http://cz-dc-v-445.mall.local:3000/d/ESJW3aRmz/consul-cluster-health?orgId=1&refresh=10s
+    - Monitoring
+        - hlavni koukat na log commit v metrikach
+        - v Mallu vysoky io
+        - test writu do consul kv
+        - pocet consul voteru
+        - resolve dns consul.service.consul

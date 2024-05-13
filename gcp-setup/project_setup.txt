@@ -1,1 +1,1 @@
-#vytvorit standard cloud nat s bgp routerem
+#vytvorit standard (free) cloud nat s bgp routerem

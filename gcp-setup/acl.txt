@@ -3,32 +3,20 @@
 cat << EOF >> /etc/consul.d/consul.hcl
 acl{
   enabled = true
-  default_policy = "allow"
-  enable_token_persistence = true
-}
-EOF
-
-killall consul
-consul agent --config-dir=/etc/consul.d/ &
-
-consul acl bootstrap
-
-CONSUL_HTTP_TOKEN=e3ecf5bb-8572-5088-2afe-a4c92649da34
-export CONSUL_HTTP_TOKEN
-
-/etc/consul.d/consul.hcl:
-acl{
-  enabled = true
   default_policy = "deny"
   enable_token_persistence = true
   tokens {
-    agent  = "$CONSUL_HTTP_TOKEN"
+    agent = "aabbccdd-1111-1111-1111-000000000000"
+    initial_management  = "aabbccdd-1111-1111-1111-000000000000"
   }
 }
 EOF
 
 killall consul
 consul agent --config-dir=/etc/consul.d/ &
+
+#Pokud neni nasetovan initial management
+#consul acl bootstrap
 
 ########## ACL - agenti
 
