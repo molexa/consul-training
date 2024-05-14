@@ -5,11 +5,13 @@ https://github.com/molexa/consul-training/tree/main/gcp-setup
 
 Osnova
 - predstaveni
-    - v Mallu 8 let
+    - v Mallu 9 let, infrastrukturni tym
     - primarne na komunikaci Microservices a konfiguraci 
-    - od zacatku na VMs, potom pres x platforem (>2000 endpointu)
+    - od zacatku na VMs, potom pres x platforem
     - hlavni dealbreaker je umozneni prechodu mezi platformami (Baremetal -> Openstack -> K8S -> Hybrid) a distribuovana sprava - prechod na microservices proces vyvoje
-    - jake jsou ocekavani ucastniku
+    - feature flags
+    - predstaveni + jake jsou ocekavani ucastniku
+    - jmenovky
 -  Organizace
     - 9 - 17, pauza na obed, 15 minut pauzy po 1,5h
         - 10:30 pauza
@@ -24,7 +26,8 @@ Osnova
         - free (community) a placena verze (entreprise)
             - placena verze ma nasledujici features
                 - auditing
-                - network partitions a namespacy
+                - network partitions
+                - namespacy
                 - backup voters
                 - read scaling
                 - https://developer.hashicorp.com/consul/docs/enterprise
@@ -51,7 +54,10 @@ Osnova
     - konfigurace - K/V
     - komunikace - mesh
 ------------
-- Popis labu a login:
+
+- Service discovery
+    #server.txt
+    - Popis labu a login:
     #project_setup.txt
     - GCP projekty
     - Zkusit si login, pripravit si ssh klic
@@ -60,10 +66,10 @@ Osnova
         - html5 gui
         - cloud console - ubuntu VM, trvaly disk
         - gcloud command a api
-- Service discovery
+        - basic network a overlaping subnety
+    - vytvorit basic nat
+    - Tvorba serveru
     #server.txt
-    - Tvorba serveru a gateway
-        - gateway bude univerzalni klient pro pokusovani
         - terminologie:
             - agent/klient - bezici proces consulu
             - server/master - control plane, agent ktery ma flag "server"
@@ -76,6 +82,7 @@ Osnova
             - implicitne zaregistrovan server - taky je noda
         - servicy
         - kv (prazdne)
+    #frontend_v1.txt
     - Spusteni dvou frontendu 
         - provadi fe-team (vyvojari, self service)
         - instalace agenta
@@ -89,6 +96,9 @@ Osnova
             - rychly operating view stavu
         - popsat distribuovanou spravu
             - pridavani service a nodes se deje mimo spravce consulu
+    #gateway.txt
+    - Instalace gateway - pokusovaciho klienta
+    #server.txt
     - Prace s katalogem pres api
         - Listing service
             - consul catalog nodes
@@ -130,7 +140,6 @@ Osnova
         - konfigurace alt domain - zhodnoceni integrace do normalniho DNS (ttl, state clusteru)
             - viz commandy
 
-
 - KV 
     - popis
         - jednoducha KV databaze - dle doku se ani nesnazi byt plnohodnotna (vs Amazon DynamoDB)
@@ -149,6 +158,7 @@ Osnova
         + hodi se pro vypinani modulu, rychle zmeny
         - nevyhodou proti treba gitu je absence audit ve free verzi
         - dalsi nevyhodou je proti db je mozna nekonzistence
+    #kv_frontend.txt
     - usecase modifikace html
         - ukazka KV v GUI - zapsani hodnoty
         - instalace consul template
@@ -163,6 +173,7 @@ Osnova
             - problem s dns caching (php)
             - ssl offloading
             - logging
+    #kv_gateway.txt
     - ukazka instalace proxy vcetne reloadovani
         - vyuziva data z katalogu vcetne tagu/meta
         - wait specifikuje min a max time na konvergenci clusteru
@@ -173,6 +184,7 @@ Osnova
         - encryption pro pripojeni do clusteru a membership
         - tls pro rpc cally a server voting
         - acl pro fukncionalitu v clusteru
+    #tls_encrypt.xt
     - encryption
         - proti "uklizecka s kabelem attacku
         - enkryptuje komunikaci v clusteru shared klicem
@@ -200,7 +212,7 @@ Osnova
                 - sice je v members jako server, ale neni voter a neaplikuje commits
                     - consul operator raft list-peers
         - pozor na expirace!!!
-
+    #acl.txt
     - ACL
         - RBAC - rizeni prav na resourcy v ramci clusteru
         - bez ACL muzou v clusteru vsichni vsechno
@@ -264,6 +276,7 @@ Osnova
                 - consul cast bezi v samostatnem namespacu
                 - neresime ted ACL - token na vsechno
                 - chceme syncovat pody jako nodes a servicy
+            #gke_helm.txt
             - postup
                 - vyrobit cluster - trva dlouho
                 - nasetovat secrety
@@ -290,7 +303,8 @@ Osnova
                     token = ""
                 }
 
-- Clustering #server.txt
+- Clustering
+    #clustering_wan_replication.txt
     - Single site
         - reseni pro jedno DC
         - nebo vice site s nizkou latenci
