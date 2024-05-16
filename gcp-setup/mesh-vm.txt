@@ -108,7 +108,7 @@ cat << EOF > /etc/consul.d/backend.hcl
 service {
   name = "backend"
   port = 8080
-  token = "9256807e-7850-d5d9-4cd9-9a7de8ab7bde"
+  token = "<BACKEND_SERVICE_TOKEN>"
   connect {
     sidecar_service {}
 }
@@ -140,8 +140,14 @@ func-e use $ENVOY_VERSION_STRING
 cp ~/.func-e/versions/$ENVOY_VERSION_STRING/bin/envoy /usr/local/bin/
 envoy --version
 
-hello.json:
-"connect": {
+cat << EOF > /etc/consul.d/hello.json
+{
+"service": {
+        "name": "hello-service-fe-team",
+        "port": 8080,
+        "token": "afa780b1-8b7f-9050-7a21-01e850300b32",
+        "tags": ["prometheus","fe_team"],
+        "connect": {
   "sidecar_service": [
     {
       "proxy": [
@@ -157,10 +163,13 @@ hello.json:
     }
   ]
 }
+}
+}
+EOF
 
 systemctl restart consul
 
-consul connect envoy -sidecar-for hello-service-fe-team -token=af1d7dc0-a9c8-a0a7-b53d-ccd5b4ac1ae2 -admin-bind localhost:19001 > hello-proxy.log &
+consul connect envoy -sidecar-for hello-service-fe-team -token=<HELLO_SERVICE_TOKEN> -admin-bind localhost:19001 > hello-proxy.log &
 
 netstat -tnlp
 
@@ -280,3 +289,63 @@ Routes = [
 EOF
 
 consul config write /etc/consul.d/router.txt
+
+##########API gateway
+#Add grpc + connect stanza to gateway
+
+cat << EOF > /root/api-gateway.txt
+Kind = "api-gateway"
+Name = "my-gateway"
+
+Listeners = [
+    {
+        Port = 8800
+        Name = "my-http-listener"
+        Protocol = "http"
+    }
+]
+EOF
+
+consul config write /root/api-gateway.txt
+
+cat << EOF > /root/http-route.txt
+Kind = "http-route"
+Name = "my-http-route"
+
+// Rules define how requests will be routed
+Rules = [
+  // Send all requests to UI services with 10% going to the "experimental" UI
+  {
+    Matches = [
+      {
+        Path = {
+          Match = "prefix"
+          Value = "/"
+        }
+      }
+    ]
+    Services = [
+      {
+        Name = "hello-service-fe-team"
+      }
+    ]
+  }
+]
+
+Parents = [
+  {
+    Kind = "api-gateway"
+    Name = "my-gateway"
+    SectionName = "my-http-listener"
+  }
+]
+EOF
+
+consul config write /root/http-route.txt
+
+
+#Would be safer not to use root token
+consul connect envoy -gateway api -register -service my-gateway -token=aabbccdd-1111-1111-1111-000000000000 &
+
+
+curl localhost:8800

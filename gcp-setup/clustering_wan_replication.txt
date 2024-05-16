@@ -42,7 +42,7 @@ EOF
 
 /etc/consul.d/consul.hcl:
 acl {
-  down_policy = "extend-cache",
+  down_policy = "extend-cache"
   enable_token_persistence = true
 }
 
@@ -57,8 +57,8 @@ primary_datacenter = "dc1"
 retry_join_wan = ["10.166.0.20"]
 EOF
 
+#Add to existing token stanza! Error is otherwise in log with "...slice..."
 /etc/consul.d/consul.hcl:
-
 acl {
   enable_token_replication = true
   tokens {
@@ -81,13 +81,14 @@ EOF
 
 /etc/consul.d/consul.hcl:
 acl {
-  down_policy = "extend-cache",
+  down_policy = "extend-cache"
   enable_token_persistence = true
 }
 
 systemctl restart consul
 
 DC2 frontend:
+#copy all configs from DC1 frontend
 #change join to DC2 server and datacenter
 
 acl {

@@ -43,6 +43,8 @@ systemctl restart consul
 consul catalog nodes
 consul catalog services
 
+#Pokud nejde vypsat command nezapomenout export token variable nebo pridat do parametru
+
 ########## DNS policy - server
 
 cat << EOF > /root/dns-policy.hcl

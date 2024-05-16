@@ -8,7 +8,7 @@ Osnova
     - v Mallu 9 let, infrastrukturni tym
     - primarne na komunikaci Microservices a konfiguraci 
     - od zacatku na VMs, potom pres x platforem
-    - hlavni dealbreaker je umozneni prechodu mezi platformami (Baremetal -> Openstack -> K8S -> Hybrid) a distribuovana sprava - prechod na microservices proces vyvoje
+    - hlavni dealbreaker je umozneni prechodu mezi platformami (Baremetal -> Openstack VMs -> K8S -> Hybrid) a distribuovana sprava - prechod na microservices proces vyvoje
     - feature flags
     - predstaveni + jake jsou ocekavani ucastniku
     - jmenovky
